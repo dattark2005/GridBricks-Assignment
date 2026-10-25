@@ -199,19 +199,20 @@ The repository is configured for both Heroku and Vercel:
 Automated test commands executed and verified:
 
 ```bash
-# Backend pytest suite (18 unit & integration tests)
+# Backend pytest suite (23 unit, security & integration tests)
 pytest -v tests
-# Result: 18 PASSED in 1.71s
+# Result: 23 PASSED in 7.74s
 
-# Frontend TypeScript check and production build
+# Frontend TypeScript check and production build with Rollup code-splitting
 cd frontend && npm run build
-# Result: Built production bundle (dist/) in 1.71s with 0 errors
+# Result: Built production bundle (dist/) in 3.05s with 0 errors across 4 optimized vendor chunks
 ```
 
 ### Verified Functionality
 - **API stream ingestion:** Live fetch and caching of January 2026 Elexon `FUELHH` and `WINDFOR` datasets.
 - **Auction cutoff filtering:** Verified selection of the latest forecast published on or before Day-Ahead 11:00 London time on D-1.
 - **Edge cases:** Zero-wind MAPE exclusion, tie-breaking determinism, month-boundary transitions.
+- **Security & Protocol hardening:** OWASP security headers (`nosniff`, `DENY`, HSTS), token-bucket sliding rate limiter (HTTP 429), strict regex input query validation, GZip payload compression, and HTTP Cache-Control.
 - **Interactive UI:** Time-series charts, signed error bars, search/sort error table, and vintage revision audit modal.
 
 ---
@@ -240,3 +241,7 @@ In accordance with assignment requirements:
 | 2026-10-25 04:52 | UI Components | Implemented `Header`, `InfoBanner`, `ControlPanel`, `MetricCards`, `ActualVsForecastChart`, `IntervalTable`, and `VintagesModal`. | Component tree built. |
 | 2026-10-25 04:55 | E2E Browser Testing | Executed end-to-end browser verification via browser subagent. Verified chart interactions, metric calculations, filtering, and modal vintage audit. | Browser verification passed, demo video recorded. |
 | 2026-10-25 05:00 | Docker & Deployment | Configured `Dockerfile.backend`, `Dockerfile.frontend`, `docker-compose.yml`, `nginx.conf`, `Procfile`, `runtime.txt`, and `vercel.json`. | Production bundles built and tested. |
+| 2026-10-25 05:18 | GSD Codebase Scan | Performed full repository scan producing `.planning/codebase/` documents (`STACK.md`, `INTEGRATIONS.md`, `ARCHITECTURE.md`, `STRUCTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`). | Codebase audit committed and pushed (`be8db80`). |
+| 2026-10-25 05:21 | Performance & Bundle | Implemented manual Rollup chunk splitting in `vite.config.ts`, eliminating 500 kB chunk warning and dividing bundle into modular vendor assets. | Built 4 distinct chunks, reducing main app bundle to 32 kB. |
+| 2026-10-25 05:24 | Security & Protocols | Implemented OWASP security headers middleware, sliding-window rate limiter (`backend/security.py`), GZip compression, and non-root Docker `appuser`. | Automated security suite verified (23/23 tests passed). |
+

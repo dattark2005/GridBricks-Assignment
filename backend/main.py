@@ -6,11 +6,15 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from fastapi.middleware.gzip import GZipMiddleware
 from backend.config import (
     DEFAULT_CUTOFF_TIME,
     DEFAULT_MAPE_THRESHOLD_MW,
     MARKET_TIMEZONE_NAME,
     CACHE_DIR,
+    CORS_ORIGINS,
+    RATE_LIMIT_MAX_REQUESTS,
+    RATE_LIMIT_WINDOW_SECONDS,
 )
 from backend.models import (
     EvaluationResponse,
@@ -20,6 +24,11 @@ from backend.models import (
 from backend.elexon_client import ElexonClient
 from backend.forecast_matcher import ForecastMatcher, parse_iso_to_utc, format_iso_utc
 from backend.metrics import calculate_metrics
+from backend.security import (
+    SecurityHeadersMiddleware,
+    RateLimitMiddleware,
+    HttpCacheControlMiddleware,
+)
 
 logger = logging.getLogger("gridbricks_api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -33,12 +42,28 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS for React frontend
+# 1. OWASP Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 2. Rate Limiting Protection (120 req/min default per client IP)
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=RATE_LIMIT_MAX_REQUESTS,
+    window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+)
+
+# 3. HTTP Cache-Control for evaluation datasets
+app.add_middleware(HttpCacheControlMiddleware)
+
+# 4. GZip Compression for payloads > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# 5. Configurable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS if "*" not in CORS_ORIGINS else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -86,14 +111,17 @@ def get_status():
 
 @app.get("/api/evaluation", response_model=EvaluationResponse, tags=["Evaluation"])
 def evaluate_forecasts(
-    start_date: str = Query("2026-01-01", description="Delivery start date (YYYY-MM-DD)"),
-    end_date: str = Query("2026-01-31", description="Delivery end date (YYYY-MM-DD)"),
+    start_date: str = Query("2026-01-01", pattern=r"^\d{4}-\d{2}-\d{2}$", description="Delivery start date (YYYY-MM-DD)"),
+    end_date: str = Query("2026-01-31", pattern=r"^\d{4}-\d{2}-\d{2}$", description="Delivery end date (YYYY-MM-DD)"),
     cutoff_time: str = Query(
         DEFAULT_CUTOFF_TIME,
+        pattern=r"^\d{1,2}:\d{2}$",
         description="Day-ahead purchasing decision cutoff time on D-1 in Europe/London (HH:MM). Default is 11:00.",
     ),
     mape_threshold_mw: float = Query(
         DEFAULT_MAPE_THRESHOLD_MW,
+        ge=0.0,
+        le=1000.0,
         description="Threshold (MW) below which actual generation is excluded from MAPE to avoid division by near-zero.",
     ),
     force_refresh: bool = Query(False, description="Bypass cache and re-fetch from Elexon BMRS API"),

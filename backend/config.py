@@ -31,3 +31,14 @@ DEFAULT_MAPE_THRESHOLD_MW = float(os.getenv("DEFAULT_MAPE_THRESHOLD_MW", "50.0")
 # Cache Settings
 CACHE_ENABLED = os.getenv("CACHE_ENABLED", "true").lower() in ("true", "1", "yes")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "86400"))  # 24 hours for historical data
+
+# Security & CORS Settings
+_default_cors = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", _default_cors).split(",")
+    if origin.strip()
+]
+
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "120"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
