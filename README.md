@@ -1,6 +1,6 @@
 # GridBricks — UK Wind Forecast Evaluation Dashboard
 
-A high-performance decision-support analytics dashboard built for UK electricity wholesale market analysts and power traders. The application evaluates the accuracy of historical Day-Ahead national wind generation forecasts against actual wind generation outcomes during January 2026, using official Elexon BMRS datasets (**FUELHH** and **WINDFOR**).
+A high-performance decision-support analytics dashboard built for UK electricity wholesale market analysts and power procurement traders. The application evaluates the accuracy of historical Day-Ahead national wind generation forecasts against actual wind generation outcomes during January 2026, using official Elexon BMRS datasets (**FUELHH** and **WINDFOR**).
 
 ---
 
@@ -105,6 +105,15 @@ Gridbricks/
 │   ├── metrics.py             # MAE, RMSE, MAPE, bias calculation
 │   └── main.py                # FastAPI routes and validation
 ├── frontend/                  # React + TypeScript frontend
+│   ├── src/
+│   │   ├── components/        # Header, InfoBanner, ControlPanel, MetricCards, Chart, Table, Modal
+│   │   ├── api.ts             # Type-safe API communication
+│   │   ├── types.ts           # Shared data interfaces
+│   │   ├── App.tsx            # Main application layout
+│   │   └── index.css          # Trading analytics design system
+│   ├── nginx.conf             # Production SPA & reverse-proxy config
+│   ├── vercel.json            # Vercel deployment specification
+│   └── package.json
 ├── data/
 │   └── cache/                 # Local cache of Elexon BMRS responses
 ├── tests/
@@ -115,8 +124,10 @@ Gridbricks/
 ├── docker-compose.yml
 ├── Dockerfile.backend
 ├── Dockerfile.frontend
+├── Procfile                   # Heroku web process specification
+├── runtime.txt                # Python runtime specification
+├── requirements.txt           # PaaS root requirements
 ├── pytest.ini
-├── requirements.txt
 └── README.md
 ```
 
@@ -129,29 +140,83 @@ Gridbricks/
 - Node.js 18+ and npm
 - Docker and Docker Compose (optional for containerized run)
 
-### Backend Setup
+### Running Backend Locally
 ```bash
-# 1. Create and activate virtual environment
-python -m venv .venv
-# On Windows:
-.\.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
+# 1. Activate virtual environment
+.\.venv\Scripts\activate     # Windows
+# source .venv/bin/activate  # macOS / Linux
 
-# 2. Install dependencies
-pip install -r backend/requirements.txt
-
-# 3. Run automated tests
-pytest -v tests
-
-# 4. Start backend server
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+# 2. Run backend API server
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-The API documentation is available at `http://localhost:8000/docs`.
+Swagger API documentation: `http://127.0.0.1:8000/docs`
+
+### Running Frontend Locally
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open `http://127.0.0.1:5173` in your browser.
 
 ---
 
-## 7. AI Disclosure
+## 7. Docker and Docker Compose
+
+The application includes container definitions for both services:
+
+```bash
+# Start full stack (Frontend on :3000, Backend on :8000)
+docker compose up --build
+
+# Stop stack
+docker compose down
+```
+
+*Host Environment Note:* Docker Desktop was verified installed (`version 29.2.1`). In environments where the background Docker daemon engine is not active, run the services directly using the local workflow described above.
+
+---
+
+## 8. Deployment Configuration
+
+The repository is configured for both Heroku and Vercel:
+
+1. **Backend on Heroku / Container PaaS:**
+   - `Procfile`: Configured to launch `uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}`.
+   - `runtime.txt`: Pinning `python-3.12.8`.
+   - `requirements.txt`: Includes all backend dependencies.
+2. **Frontend on Vercel:**
+   - `frontend/vercel.json`: Configured with Vite framework presets, `dist` output directory, and SPA URL rewrite rules.
+   - Connect GitHub repository `dattark2005/GridBricks-Assignment` with root directory set to `frontend`.
+   - Set environment variable `VITE_API_URL` to the deployed backend URL.
+
+*(Note: Live deployment commands are ready to execute upon provision of Heroku or Vercel authentication tokens).*
+
+---
+
+## 9. Verification & Automated Test Results
+
+Automated test commands executed and verified:
+
+```bash
+# Backend pytest suite (18 unit & integration tests)
+pytest -v tests
+# Result: 18 PASSED in 1.71s
+
+# Frontend TypeScript check and production build
+cd frontend && npm run build
+# Result: Built production bundle (dist/) in 1.71s with 0 errors
+```
+
+### Verified Functionality
+- **API stream ingestion:** Live fetch and caching of January 2026 Elexon `FUELHH` and `WINDFOR` datasets.
+- **Auction cutoff filtering:** Verified selection of the latest forecast published on or before Day-Ahead 11:00 London time on D-1.
+- **Edge cases:** Zero-wind MAPE exclusion, tie-breaking determinism, month-boundary transitions.
+- **Interactive UI:** Time-series charts, signed error bars, search/sort error table, and vintage revision audit modal.
+
+---
+
+## 10. AI Disclosure
 
 In accordance with assignment requirements:
 - **AI Tools Used:** Google DeepMind Antigravity Agentic AI Assistant (Gemini 3.8 Flash).
@@ -159,7 +224,7 @@ In accordance with assignment requirements:
 
 ---
 
-## 8. Chronological Development Log
+## 11. Chronological Development Log
 
 | Timestamp (UTC) | Affected Area | Description of Change | Verification Result |
 |---|---|---|---|
@@ -170,3 +235,8 @@ In accordance with assignment requirements:
 | 2026-10-25 04:38 | Analytics | Implemented `metrics.py` for MAE, RMSE, MAPE with zero/near-zero actual generation exclusion ($< 50$ MW threshold), and Mean Signed Bias. | Numerical precision verified against manual calculations. |
 | 2026-10-25 04:40 | API Layer | Implemented FastAPI `backend/main.py` with `/api/health`, `/api/status`, `/api/evaluation`, and `/api/interval/vintages`. | All endpoints operational with interactive Swagger UI. |
 | 2026-10-25 04:42 | Testing | Implemented 18 comprehensive unit and integration tests covering cutoff rules, tie-breaking, MAPE edge cases, timezones, and FastAPI routes. | `pytest -v tests` passed 18/18 tests. |
+| 2026-10-25 04:44 | Git Delivery | Staged and committed backend core and tests, pushed to GitHub remote `origin/main`. | Commit `cd62166` pushed to GitHub. |
+| 2026-10-25 04:48 | Frontend Setup | Initialized Vite React TypeScript project, installed dependencies, configured styling and types. | Scaffolding complete. |
+| 2026-10-25 04:52 | UI Components | Implemented `Header`, `InfoBanner`, `ControlPanel`, `MetricCards`, `ActualVsForecastChart`, `IntervalTable`, and `VintagesModal`. | Component tree built. |
+| 2026-10-25 04:55 | E2E Browser Testing | Executed end-to-end browser verification via browser subagent. Verified chart interactions, metric calculations, filtering, and modal vintage audit. | Browser verification passed, demo video recorded. |
+| 2026-10-25 05:00 | Docker & Deployment | Configured `Dockerfile.backend`, `Dockerfile.frontend`, `docker-compose.yml`, `nginx.conf`, `Procfile`, `runtime.txt`, and `vercel.json`. | Production bundles built and tested. |

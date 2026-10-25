@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gridbricks-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEFAULT_CUTOFF_TIME=11:00
+      - DEFAULT_MAPE_THRESHOLD_MW=50.0
+      - ELEXON_REQUEST_TIMEOUT_SECONDS=30.0
+      - CACHE_ENABLED=true
+    volumes:
+      - ./data/cache:/app/data/cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: gridbricks-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: gridbricks-network
